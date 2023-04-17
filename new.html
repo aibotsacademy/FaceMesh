@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Facemesh landmarks of the lips</title>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/facemesh.min.js"></script>
+  </head>
+  <body>
+    <h1>Facemesh landmarks of the lips</h1>
+    <video id="inputVideo" width="720" height="480" autoplay></video>
+    <canvas id="outputCanvas" width="720" height="480"></canvas>
+
+    <script>
+      const video = document.getElementById('inputVideo');
+      const canvas = document.getElementById('outputCanvas');
+      const context = canvas.getContext('2d');
+      let facemesh;
+
+      function onResults(results) {
+        context.clearRect(0, 0, canvas.width, canvas.height);
+        context.drawImage(results.image, 0, 0, canvas.width, canvas.height);
+
+        if (results.multiFaceLandmarks) {
+          results.multiFaceLandmarks.forEach(face => {
+            const lips = face.scaledMesh.slice(13,21);
+
+            context.beginPath();
+            context.fillStyle = "red";
+            context.strokeStyle = "black";
+            context.lineWidth = 1;
+
+            lips.forEach(point => {
+              context.lineTo(point[0], point[1]);
+            })
+
+            context.closePath();
+            context.fill();
+            context.stroke();
+          });
+        }
+      }
+
+      async function startCamera() {
+        const stream = await navigator.mediaDevices.getUserMedia({video: true});
+        video.srcObject = stream;
+      }
+
+      async function main() {
+        await tf.setBackend('webgl');
+
+        facemesh = new facemesh.FaceMesh({
+          locateFile: (file) => {
+            return `https://cdn.jsdelivr.net/npm/@mediapipe/facemesh/${file}`;
+          }
+        });
+        facemesh.setOptions({
+          maxNumFaces: 4,
+          selfieMode: true,
+          minDetectionConfidence: 0.5,
+          minTrackingConfidence: 0.5
+        });
+        facemesh.onResults(onResults);
+
+        await startCamera();
+
+        setInterval(() => {
+          facemesh.send({image: video});
+        }, 1000);
+      }
+
+      main();
+    </script>
+    
+  </body>
+</html>
